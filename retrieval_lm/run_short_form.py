@@ -75,8 +75,12 @@ def call_model_rerank_w_scores_batch(prompt, evidences, model, max_new_tokens=15
             for tok, id in ret_tokens.items():
                 if id not in pred_log_probs[0]:
                     score_dict[tok] = -100
+                
+                # TODO: This part should be an elif because if the previous statement is true, the next one will be an error
                 prob = pred_log_probs[0][id]
                 score_dict[tok] = float(prob)
+
+            # Compare with threshold the probability of retrieval divided by the total probability of retrieval tokens: p(retrieve) + p(no retrieve)
             do_retrieve = score_dict["[Retrieval]"] / (
                 score_dict["[Retrieval]"] + score_dict["[No Retrieval]"]) > threshold
         else:
@@ -197,7 +201,7 @@ def call_model_rerank_w_scores_batch(prompt, evidences, model, max_new_tokens=15
             best_path = sorted(path2score.items(),
                                key=lambda x: x[1], reverse=True)[0][0]
             best_option = results[best_path]["pred"]
-        return best_option, results, do_retrieve
+        return best_option, results, do_retrieve, preds[0]
 
 
 def process_data_evidences(demonstration, top_n):
@@ -312,7 +316,7 @@ def main():
     def generate(prompt, evidences, max_new_tokens):
         return call_model_rerank_w_scores_batch(prompt, evidences=evidences, model=model, max_new_tokens=max_new_tokens,
                                                 rel_tokens=rel_tokens, ret_tokens=ret_tokens, grd_tokens=grd_tokens, ut_tokens=ut_tokens,
-                                                threshold=args.threshold, max_depth=args.max_depth, use_seqscore=args.use_seqscore,
+                                                threshold=args.threshold, use_seqscore=args.use_seqscore,
                                                 w_rel=args.w_rel, w_sup=args.w_sup, w_use=args.w_use, mode=args.mode, closed=args.task in ["fever", "arc_c"])
 
     preds = []
@@ -326,7 +330,7 @@ def main():
         results = {}
         prompt = PROMPT_DICT["prompt_no_input"].format_map(row)
         _, evidences = process_data_evidences(row, top_n=args.ndocs)
-        pred, results, do_retrieve = generate(
+        pred, results, do_retrieve, pred_obj = generate(
             prompt, evidences, max_new_tokens=args.max_new_tokens,)
         if type(pred) is str and pred[0] == "#" or pred[0] == ":":
             pred = pred[1:]
