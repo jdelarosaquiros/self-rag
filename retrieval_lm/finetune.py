@@ -357,6 +357,7 @@ def encode_with_messages_format(example, tokenizer, max_seq_length):
         
 
 def main():
+    access_token = os.environ["HF_TOKEN"]
     args = parse_args()
 
     # A hacky way to make llama work with flash attention
@@ -442,10 +443,11 @@ def main():
             from_tf=bool(".ckpt" in args.model_name_or_path),
             config=config,
             low_cpu_mem_usage=args.low_cpu_mem_usage,
+            token=access_token
         )
     else:
         logger.info("Training new model from scratch")
-        model = AutoModelForCausalLM.from_config(config)
+        model = AutoModelForCausalLM.from_config(config, token=access_token)
 
 
     # no default pad token for llama!
